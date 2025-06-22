@@ -42,10 +42,28 @@ export default function SignUp() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ profile_id, username })
             });
-            const data = await res.json();
+
+            let data;
+            try {
+                data = await res.json();
+            } catch (jsonError) {
+                console.error("Failed to parse response as JSON");
+                if (!res.ok) {
+                    throw new Error(`Server responded with status: ${res.status}`);
+                }
+                return null;
+            }
+
+            if (!res.ok) {
+                console.error("Server error:", data);
+                throw new Error(`Server responded with status: ${res.status}`);
+            }
+
             console.log("Profile response:", data); // 👈 Xem phản hồi từ backend
+            return data;
         } catch (err) {
             console.error("Failed to create profile:", err);
+            throw err; // Re-throw to allow caller to handle
         }
     };
     //////////
@@ -60,7 +78,13 @@ export default function SignUp() {
                 const username = email.split('@')[0];
                 if (attempt.createdUserId) {
                     console.log("Creating profile with ID:", attempt.createdUserId, "Username:", username);
-                    await createProfile(attempt.createdUserId, username);
+                    try {
+                        await createProfile(attempt.createdUserId, username);
+                        console.log("Profile created successfully");
+                    } catch (profileErr) {
+                        console.error("Error creating profile:", profileErr);
+                        // Continue with navigation even if profile creation fails
+                    }
                 }
                 router.replace('/');
             } else {
