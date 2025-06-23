@@ -2,72 +2,70 @@
 // const db = require('../config/db.js'); // Your database connection
 import {sql} from '../config/db.js';
 // Create a new schedule with days
-export async function createSchedule  (req, res)  {
+export async function createSchedule(req, res) {
+    const client = await sql.connect();
     try {
+        await client.query('BEGIN');
+
         const { user_id, goal, startDate, endDate, name, savedStates } = req.body;
-        // Insert into schedules
-        const scheduleResult = await sql.query(
+        const scheduleResult = await client.query(
             'INSERT INTO schedules (user_id, goal, start_date, end_date, name) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [user_id, goal, startDate, endDate, name]
         );
         const schedule = scheduleResult.rows[0];
 
-        // Insert days
-        // Insert days
+        // Generate days
         const days = [];
         let dt = new Date(startDate);
         const end = new Date(endDate);
         let idx = 0;
+
         while (dt <= end) {
-            days.push({
-                date: dt.toISOString().slice(0, 10),
-                is_checked: savedStates ? !!savedStates[idx] : false,
-            });
-            dt = new Date(dt); // clone date before increment
+            const dayResult = await client.query(
+                'INSERT INTO schedule_days (schedule_id, date, is_checked) VALUES ($1, $2, $3) RETURNING *',
+                [schedule.id, dt.toISOString().slice(0, 10), savedStates ? !!savedStates[idx] : false]
+            );
+            days.push(dayResult.rows[0]);
             dt.setDate(dt.getDate() + 1);
             idx++;
         }
-        for (const d of days) {
-            await sql.query(
-                'INSERT INTO schedule_days (schedule_id, date, is_checked) VALUES ($1, $2, $3)',
-                [schedule.id, d.date, d.is_checked]
-            );
-        }
+
+        await client.query('COMMIT');
         res.status(201).json({ schedule, days });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        await client.query('ROLLBACK');
+        console.error('Create schedule error:', err);
+        res.status(500).json({
+            error: 'Failed to create schedule',
+            details: err.message
+        });
+    } finally {
+        client.release();
     }
-};
-
+}
 // Get all schedules for a user
 export async function getSchedules(req, res) {
     try {
         const { user_id } = req.params;
-        // Get schedules
-        const schedules = await sql.query(
-            'SELECT * FROM schedules WHERE user_id = $1 ORDER BY created_at DESC',
-            [user_id]
-        );
+        const result = await sql.query(`
+            SELECT s.*, 
+                   json_agg(sd.* ORDER BY sd.date) as days
+            FROM schedules s
+            LEFT JOIN schedule_days sd ON s.id = sd.schedule_id
+            WHERE s.user_id = $1
+            GROUP BY s.id
+            ORDER BY s.created_at DESC
+        `, [user_id]);
 
-        // Get days for each schedule
-        const result = [];
-        for (const schedule of schedules.rows) {
-            const days = await sql.query(
-                'SELECT * FROM schedule_days WHERE schedule_id = $1 ORDER BY date',
-                [schedule.id]
-            );
-            result.push({
-                ...schedule,
-                days: days.rows
-            });
-        }
-
-        res.json(result);
+        res.json(result.rows);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Get schedules error:', err);
+        res.status(500).json({
+            error: 'Failed to fetch schedules',
+            details: err.message
+        });
     }
 }
-
 // Get a schedule with its days
 export async  function  getScheduleById  (req, res)  {
     try {
