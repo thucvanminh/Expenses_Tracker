@@ -40,18 +40,33 @@ export async function createSchedule  (req, res)  {
 };
 
 // Get all schedules for a user
-export async  function  getSchedules  (req, res) {
+export async function getSchedules(req, res) {
     try {
-        const { user_id } = req.query;
+        const { user_id } = req.params;
+        // Get schedules
         const schedules = await sql.query(
             'SELECT * FROM schedules WHERE user_id = $1 ORDER BY created_at DESC',
             [user_id]
         );
-        res.json(schedules.rows);
+
+        // Get days for each schedule
+        const result = [];
+        for (const schedule of schedules.rows) {
+            const days = await sql.query(
+                'SELECT * FROM schedule_days WHERE schedule_id = $1 ORDER BY date',
+                [schedule.id]
+            );
+            result.push({
+                ...schedule,
+                days: days.rows
+            });
+        }
+
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
-};
+}
 
 // Get a schedule with its days
 export async  function  getScheduleById  (req, res)  {
@@ -90,3 +105,5 @@ export async  function  deleteSchedule  (req, res) {
         res.status(500).json({ error: err.message });
     }
 };
+
+

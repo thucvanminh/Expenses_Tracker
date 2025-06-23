@@ -10,8 +10,9 @@ router.post('/', schedulesController.createSchedule);
 router.get('/', schedulesController.getSchedules);
 
 // Get a schedule by id (with days)
-router.get('/:id', schedulesController.getScheduleById);
-
+// router.get('/:id', schedulesController.getScheduleById);
+// Sửa lại route
+router.get('/:userId', schedulesController.getSchedules);
 // Update a day's checked state
 router.put('/day/:day_id', schedulesController.updateDay);
 

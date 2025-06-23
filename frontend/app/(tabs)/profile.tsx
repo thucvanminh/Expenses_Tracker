@@ -69,28 +69,57 @@ const Profile = () => {
   //     fetchHistory();
   //   }, [])
   // );
+  // useEffect(() => {
+  //   const fetchHistory = async () => {
+  //     if (!userId) return;
+  //     try {
+  //       const res = await fetch(`${API_URL}/schedules?user_id=${userId}`);
+  //       if (!res.ok) throw new Error('Failed to fetch schedules');
+  //       const data = await res.json();
+  //       // Map lại dữ liệu cho đúng với UI
+  //       const mapped = data.map((item: any) => ({
+  //         id: item.id,
+  //         goal: item.goal,
+  //         startDate: item.start_date,
+  //         endDate: item.end_date,
+  //         savedAt: item.created_at,
+  //         name: item.name,
+  //       }));
+  //       setHistory(mapped);
+  //     } catch (e) {
+  //       setHistory([]);
+  //     }
+  //   };
+  //   fetchHistory();
+  // }, [userId]);
+
   useEffect(() => {
-    const fetchHistory = async () => {
+    const fetchSchedules = async () => {
       if (!userId) return;
       try {
-        const res = await fetch(`${API_URL}/schedules?user_id=${userId}`);
+        const res = await fetch(`${API_URL}/schedules/${userId}`);
         if (!res.ok) throw new Error('Failed to fetch schedules');
         const data = await res.json();
-        // Map lại dữ liệu cho đúng với UI
-        const mapped = data.map((item: any) => ({
-          id: item.id,
-          goal: item.goal,
-          startDate: item.start_date,
-          endDate: item.end_date,
-          savedAt: item.created_at,
-          name: item.name,
+
+        // Map backend fields to frontend structure
+        const mappedSchedules = data.map((schedule: any) => ({
+          id: schedule.id,
+          goal: schedule.goal,
+          startDate: schedule.start_date,
+          endDate: schedule.end_date,
+          savedAt: schedule.created_at,
+          name: schedule.name || `Schedule ${new Date(schedule.created_at).toLocaleDateString()}`
         }));
-        setHistory(mapped);
-      } catch (e) {
+
+        setHistory(mappedSchedules);
+        console.log("Fetched schedules:", mappedSchedules);
+      } catch (error) {
+        console.error("Error fetching schedules:", error);
         setHistory([]);
       }
     };
-    fetchHistory();
+
+    fetchSchedules();
   }, [userId]);
 
   const handleUpdatePassword = async () => {

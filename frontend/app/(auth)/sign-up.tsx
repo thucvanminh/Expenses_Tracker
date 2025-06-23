@@ -33,39 +33,44 @@ export default function SignUp() {
         }
     };
 
+
     //////
-    const createProfile = async (profile_id: string, username: string) => {
-        try {
-            console.log("CALLING API", profile_id, username);
-            const res = await fetch(`${API_URL}/profiles`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ profile_id, username })
-            });
-
-            let data;
-            try {
-                data = await res.json();
-            } catch (jsonError) {
-                console.error("Failed to parse response as JSON");
-                if (!res.ok) {
-                    throw new Error(`Server responded with status: ${res.status}`);
-                }
-                return null;
-            }
-
-            if (!res.ok) {
-                console.error("Server error:", data);
-                throw new Error(`Server responded with status: ${res.status}`);
-            }
-
-            console.log("Profile response:", data); // 👈 Xem phản hồi từ backend
-            return data;
-        } catch (err) {
-            console.error("Failed to create profile:", err);
-            throw err; // Re-throw to allow caller to handle
-        }
-    };
+    // const createProfile = async (profile_id: string, username: string) => {
+    //     try {
+    //         console.log("CALLING API", profile_id, username);
+    //         const res = await fetch(`${API_URL}/profiles`, {
+    //             method: "POST",
+    //             headers: { "Content-Type": "application/json" },
+    //             body: JSON.stringify(
+    //                 profile_id,
+    //                 username,
+    //                 custom_startmonth: 1  // Adding the required field
+    //             })
+    //         });
+    //
+    //         let data;
+    //         try {
+    //             data = await res.json();
+    //         } catch (jsonError) {
+    //             console.error("Failed to parse response as JSON");
+    //             if (!res.ok) {
+    //                 throw new Error(`Server responded with status: ${res.status}`);
+    //             }
+    //             return null;
+    //         }
+    //
+    //         if (!res.ok) {
+    //             console.error("Server error:", data);
+    //             throw new Error(`Server responded with status: ${res.status}`);
+    //         }
+    //
+    //         console.log("Profile response:", data);
+    //         return data;
+    //     } catch (err) {
+    //         console.error("Failed to create profile:", err);
+    //         throw err;
+    //     }
+    // }
     //////////
 
     const handleVerify = async () => {
@@ -79,7 +84,7 @@ export default function SignUp() {
                 if (attempt.createdUserId) {
                     console.log("Creating profile with ID:", attempt.createdUserId, "Username:", username);
                     try {
-                        await createProfile(attempt.createdUserId, username);
+                        // await createProfile(attempt.createdUserId, username);
                         console.log("Profile created successfully");
                     } catch (profileErr) {
                         console.error("Error creating profile:", profileErr);
