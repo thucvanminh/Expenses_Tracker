@@ -2,47 +2,92 @@
 // const db = require('../config/db.js'); // Your database connection
 import {sql} from '../config/db.js';
 // Create a new schedule with days
+// export async function createSchedule(req, res) {
+//     const client = await sql.connect();
+//     try {
+//         await client.query('BEGIN');
+//
+//         const { user_id, goal, startDate, endDate, name, savedStates } = req.body;
+//         const scheduleResult = await client.query(
+//             'INSERT INTO schedules (user_id, goal, start_date, end_date, name) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+//             [user_id, goal, startDate, endDate, name]
+//         );
+//         const schedule = scheduleResult.rows[0];
+//
+//         // Generate days
+//         const days = [];
+//         let dt = new Date(startDate);
+//         const end = new Date(endDate);
+//         let idx = 0;
+//
+//         while (dt <= end) {
+//             const dayResult = await client.query(
+//                 'INSERT INTO schedule_days (schedule_id, date, is_checked) VALUES ($1, $2, $3) RETURNING *',
+//                 [schedule.id, dt.toISOString().slice(0, 10), savedStates ? !!savedStates[idx] : false]
+//             );
+//             days.push(dayResult.rows[0]);
+//             dt.setDate(dt.getDate() + 1);
+//             idx++;
+//         }
+//
+//         await client.query('COMMIT');
+//         res.status(201).json({ schedule, days });
+//     } catch (err) {
+//         await client.query('ROLLBACK');
+//         console.error('Create schedule error:', err);
+//         res.status(500).json({
+//             error: 'Failed to create schedule',
+//             details: err.message
+//         });
+//     } finally {
+//         client.release();
+//     }
+// }
 export async function createSchedule(req, res) {
     const client = await sql.connect();
     try {
         await client.query('BEGIN');
 
         const { user_id, goal, startDate, endDate, name, savedStates } = req.body;
+
+        // Create schedule
         const scheduleResult = await client.query(
             'INSERT INTO schedules (user_id, goal, start_date, end_date, name) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [user_id, goal, startDate, endDate, name]
         );
         const schedule = scheduleResult.rows[0];
 
-        // Generate days
+        // Create schedule_days
         const days = [];
-        let dt = new Date(startDate);
+        let currentDate = new Date(startDate);
         const end = new Date(endDate);
         let idx = 0;
 
-        while (dt <= end) {
+        while (currentDate <= end) {
             const dayResult = await client.query(
                 'INSERT INTO schedule_days (schedule_id, date, is_checked) VALUES ($1, $2, $3) RETURNING *',
-                [schedule.id, dt.toISOString().slice(0, 10), savedStates ? !!savedStates[idx] : false]
+                [schedule.id, currentDate.toISOString().split('T')[0], savedStates ? !!savedStates[idx] : false]
             );
             days.push(dayResult.rows[0]);
-            dt.setDate(dt.getDate() + 1);
+            currentDate.setDate(currentDate.getDate() + 1);
             idx++;
         }
 
         await client.query('COMMIT');
-        res.status(201).json({ schedule, days });
+        res.status(201).json({
+            ...schedule,
+            days
+        });
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Create schedule error:', err);
-        res.status(500).json({
-            error: 'Failed to create schedule',
-            details: err.message
-        });
+        res.status(500).json({ error: 'Failed to create schedule' });
     } finally {
         client.release();
     }
 }
+
+
 // Get all schedules for a user
 export async function getSchedules(req, res) {
     try {

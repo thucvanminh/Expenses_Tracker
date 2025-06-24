@@ -93,34 +93,65 @@ const Profile = () => {
   //   fetchHistory();
   // }, [userId]);
 
-  useEffect(() => {
-    const fetchSchedules = async () => {
-      if (!userId) return;
-      try {
-        const res = await fetch(`${API_URL}/schedules/${userId}`);
-        if (!res.ok) throw new Error('Failed to fetch schedules');
-        const data = await res.json();
+  // useEffect(() => {
+  //   const fetchSchedules = async () => {
+  //     if (!userId) return;
+  //     try {
+  //       const res = await fetch(`${API_URL}/schedules/${userId}`);
+  //       if (!res.ok) throw new Error('Failed to fetch schedules');
+  //       const data = await res.json();
+  //
+  //       // Map backend fields to frontend structure
+  //       const mappedSchedules = data.map((schedule: any) => ({
+  //         id: schedule.id,
+  //         goal: schedule.goal,
+  //         startDate: schedule.start_date,
+  //         endDate: schedule.end_date,
+  //         savedAt: schedule.created_at,
+  //         name: schedule.name || `Schedule ${new Date(schedule.created_at).toLocaleDateString()}`
+  //       }));
+  //
+  //       setHistory(mappedSchedules);
+  //       console.log("Fetched schedules:", mappedSchedules);
+  //     } catch (error) {
+  //       console.error("Error fetching schedules:", error);
+  //       setHistory([]);
+  //     }
+  //   };
+  //
+  //   fetchSchedules();
+  // }, [userId]);
 
-        // Map backend fields to frontend structure
-        const mappedSchedules = data.map((schedule: any) => ({
-          id: schedule.id,
-          goal: schedule.goal,
-          startDate: schedule.start_date,
-          endDate: schedule.end_date,
-          savedAt: schedule.created_at,
-          name: schedule.name || `Schedule ${new Date(schedule.created_at).toLocaleDateString()}`
-        }));
+  const fetchSchedules = async () => {
+    if (!userId) return;
+    try {
+      const res = await fetch(`${API_URL}/schedules/${userId}`);
+      if (!res.ok) throw new Error('Failed to fetch schedules');
+      const data = await res.json();
 
-        setHistory(mappedSchedules);
-        console.log("Fetched schedules:", mappedSchedules);
-      } catch (error) {
-        console.error("Error fetching schedules:", error);
-        setHistory([]);
-      }
-    };
+      setHistory(data.map(schedule => ({
+        id: schedule.id,
+        goal: schedule.goal,
+        startDate: schedule.start_date,
+        endDate: schedule.end_date,
+        savedAt: schedule.created_at,
+        name: schedule.name || `Schedule ${new Date(schedule.created_at).toLocaleDateString()}`,
+        days: schedule.days
+      })));
+    } catch (error) {
+      console.error('Fetch schedules error:', error);
+      setHistory([]);
+    }
+  };
 
-    fetchSchedules();
-  }, [userId]);
+// Add refresh on focus
+  useFocusEffect(
+      React.useCallback(() => {
+        fetchSchedules();
+      }, [userId])
+  );
+
+
 
   const handleUpdatePassword = async () => {
     if (!newPassword || !confirmPassword) {
