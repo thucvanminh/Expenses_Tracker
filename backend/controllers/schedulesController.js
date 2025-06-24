@@ -54,3 +54,20 @@ export const getScheduleDetails = async (req, res) => {
         res.status(500).json({ error: "Failed to fetch schedule" });
     }
 };
+
+
+// schedulesController.js
+export const getSchedulesByUser = async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: "Missing user_id" });
+
+    try {
+        const schedules = await sql`
+      SELECT * FROM schedules WHERE user_id = ${user_id} ORDER BY saved_at DESC
+    `;
+        res.json(schedules);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch schedules" });
+    }
+};

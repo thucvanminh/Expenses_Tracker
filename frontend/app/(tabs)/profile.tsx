@@ -13,13 +13,14 @@ import { styles } from '../../assets/styles/create.styles';
 import { styles as stylesHome } from '../../assets/styles/home.styles';
 import { API_URL } from '@/constants/api';
 interface ScheduleHistory {
+  id: number; // 👈 cần để gọi API chi tiết
   goal: number;
   startDate: string;
   endDate: string;
   savedAt: string;
-  savedStates?: boolean[];
   name?: string;
 }
+
 
 const Profile = () => {
   const { user } = useUser();
@@ -36,18 +37,53 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const userId = user?.id;
 
+  //
+  // useFocusEffect(
+  //   React.useCallback(() => {
+  //     const fetchHistory = async () => {
+  //       const data = await AsyncStorage.getItem('schedule_history');
+  //       if (data) setHistory(JSON.parse(data));
+  //       else setHistory([]);
+  //     };
+  //     fetchHistory();
+  //   }, [])
+  // );
+
+/////////
+
 
   useFocusEffect(
-    React.useCallback(() => {
-      const fetchHistory = async () => {
-        const data = await AsyncStorage.getItem('schedule_history');
-        if (data) setHistory(JSON.parse(data));
-        else setHistory([]);
-      };
-      fetchHistory();
-    }, [])
-  );
+      React.useCallback(() => {
+        const fetchSchedulesFromServer = async () => {
+          if (!userId) return;
+          try {
+            const res = await fetch(`${API_URL}/schedules?user_id=${userId}`);
+            const data = await res.json();
+            if (res.ok) {
+              // data là mảng các schedule [{ id, goal, start_date, end_date, saved_at, name }]
+              setHistory(
+                  data.map((s) => ({
+                    id: s.id,
+                    goal: s.goal,
+                    startDate: s.start_date,
+                    endDate: s.end_date,
+                    savedAt: s.saved_at,
+                    name: s.name,
+                  }))
+              );
+            } else {
+              console.log('Error fetching schedules:', data.error);
+              setHistory([]);
+            }
+          } catch (err) {
+            console.error('Fetch error:', err);
+            setHistory([]);
+          }
+        };
 
+        fetchSchedulesFromServer();
+      }, [userId])
+  );
 
 
   const handleUpdatePassword = async () => {
@@ -170,6 +206,8 @@ const Profile = () => {
       </View>
       <View style={[styles.card]}>
         <FlatList
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
           data={history}
           keyExtractor={(_, idx) => idx.toString()}
           renderItem={({ item, index }) => (
