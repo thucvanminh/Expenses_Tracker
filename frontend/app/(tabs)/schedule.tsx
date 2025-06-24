@@ -110,62 +110,40 @@ const Schedule = () => {
     //     }
     //     setIsLoading(false);
     // };
-    // const handleSaveSchedule = async () => {
-    //     if (!goal || !startDate || !endDate || !userId) return;
-    //     setIsLoading(true);
-    //     try {
-    //         let savedStates = savedStatesRef.current;
-    //         const newSchedule = {
-    //             user_id: userId,
-    //             goal: parseInt(goal),
-    //             startDate: startDate.toISOString(),
-    //             endDate: endDate.toISOString(),
-    //             savedStates,
-    //             name: '', // hoặc lấy từ input nếu có
-    //         };
-    //         // Gửi lên backend
-    //         const res = await fetch(`${API_URL}/schedules`, {
-    //             method: 'POST',
-    //             headers: { 'Content-Type': 'application/json' },
-    //             body: JSON.stringify(newSchedule),
-    //         });
-    //         if (!res.ok) throw new Error('Failed to save schedule');
-    //         // Xử lý kết quả nếu cần
-    //     } catch (e) {
-    //         // Hiển thị thông báo lỗi nếu cần
-    //     }
-    //     setIsLoading(false);
-    // };
+
+
+    //////
 
     const handleSaveSchedule = async () => {
         if (!goal || !startDate || !endDate || !userId) return;
         setIsLoading(true);
         try {
-            const newSchedule = {
-                user_id: userId,
-                goal: parseInt(goal),
-                startDate: startDate.toISOString().split('T')[0], // Format date to YYYY-MM-DD
-                endDate: endDate.toISOString().split('T')[0],
-                name: '', // Add name field if needed
-                savedStates: savedStatesRef.current || []
-            };
-
+            let savedStates = savedStatesRef.current;
             const res = await fetch(`${API_URL}/schedules`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newSchedule)
+                body: JSON.stringify({
+                    user_id: userId,
+                    goal: parseInt(goal),
+                    start_date: startDate.toISOString().slice(0, 10),
+                    end_date: endDate.toISOString().slice(0, 10),
+                    savedStates,
+                    name: `Schedule ${new Date().toLocaleDateString()}`,
+                }),
             });
 
-            if (!res.ok) throw new Error('Failed to save schedule');
-
-            // Navigate back to profile after successful save
-            router.back();
-        } catch (error) {
-            console.error('Save schedule error:', error);
-            Alert.alert('Error', 'Failed to save schedule');
-        } finally {
-            setIsLoading(false);
+            const result = await res.json();
+            if (res.ok) {
+                Alert.alert('Success', 'Schedule saved to database!');
+            } else {
+                console.log(result);
+                Alert.alert('Error', result.error || 'Something went wrong!');
+            }
+        } catch (err) {
+            console.error(err);
+            Alert.alert('Error', 'Network error');
         }
+        setIsLoading(false);
     };
 
 

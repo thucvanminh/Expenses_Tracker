@@ -1,171 +1,56 @@
-// backend/controllers/schedulesController.js
-// const db = require('../config/db.js'); // Your database connection
-import {sql} from '../config/db.js';
-// Create a new schedule with days
-// export async function createSchedule(req, res) {
-//     const client = await sql.connect();
-//     try {
-//         await client.query('BEGIN');
-//
-//         const { user_id, goal, startDate, endDate, name, savedStates } = req.body;
-//         const scheduleResult = await client.query(
-//             'INSERT INTO schedules (user_id, goal, start_date, end_date, name) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-//             [user_id, goal, startDate, endDate, name]
-//         );
-//         const schedule = scheduleResult.rows[0];
-//
-//         // Generate days
-//         const days = [];
-//         let dt = new Date(startDate);
-//         const end = new Date(endDate);
-//         let idx = 0;
-//
-//         while (dt <= end) {
-//             const dayResult = await client.query(
-//                 'INSERT INTO schedule_days (schedule_id, date, is_checked) VALUES ($1, $2, $3) RETURNING *',
-//                 [schedule.id, dt.toISOString().slice(0, 10), savedStates ? !!savedStates[idx] : false]
-//             );
-//             days.push(dayResult.rows[0]);
-//             dt.setDate(dt.getDate() + 1);
-//             idx++;
-//         }
-//
-//         await client.query('COMMIT');
-//         res.status(201).json({ schedule, days });
-//     } catch (err) {
-//         await client.query('ROLLBACK');
-//         console.error('Create schedule error:', err);
-//         res.status(500).json({
-//             error: 'Failed to create schedule',
-//             details: err.message
-//         });
-//     } finally {
-//         client.release();
-//     }
-// }
-export async function createSchedule(req, res) {
-    const client = await sql.connect();
+import { sql } from "../config/db.js";
+
+// Hàm tạo schedule
+export const createSchedule = async (req, res) => {
+    const { user_id, goal, start_date, end_date, savedStates, name } = req.body;
     try {
-        await client.query('BEGIN');
+        // 1. Tạo schedule
+        const result = await sql`
+      INSERT INTO schedules (user_id, goal, start_date, end_date, name)
+      VALUES (${user_id}, ${goal}, ${start_date}, ${end_date}, ${name})
+      RETURNING id
+    `;
+        const schedule_id = result[0].id;
 
-        const { user_id, goal, startDate, endDate, name, savedStates } = req.body;
-
-        // Validate required fields
-        if (!user_id || !goal || !startDate || !endDate) {
-            throw new Error('Missing required fields');
-        }
-
-        // Create schedule
-        const scheduleResult = await client.query(
-            'INSERT INTO schedules (user_id, goal, start_date, end_date, name) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [user_id, parseInt(goal), startDate, endDate, name || '']
-        );
-
-        const schedule = scheduleResult.rows[0];
-
-        // Create schedule_days
+        // 2. Tạo schedule_days
+        const start = new Date(start_date);
+        const end = new Date(end_date);
         const days = [];
-        let currentDate = new Date(startDate);
-        const end = new Date(endDate);
-
-        let idx = 0;
-        while (currentDate <= end) {
-            const isChecked = savedStates && savedStates[idx] === true;
-            const dayResult = await client.query(
-                'INSERT INTO schedule_days (schedule_id, date, is_checked) VALUES ($1, $2, $3) RETURNING *',
-                [schedule.id, currentDate.toISOString().split('T')[0], isChecked]
-            );
-            currentDate.setDate(currentDate.getDate() + 1);
-            idx++;
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            days.push(new Date(d));
         }
 
-
-        await client.query('COMMIT');
-
-        // Return complete schedule with days
-        res.status(201).json({
-            id: schedule.id,
-            user_id: schedule.user_id,
-            goal: schedule.goal,
-            start_date: schedule.start_date,
-            end_date: schedule.end_date,
-            name: schedule.name,
-            created_at: schedule.created_at,
-            days: days
+        const insertQueries = days.map((d, idx) => {
+            const dayStr = d.toISOString().slice(0, 10);
+            const checked = savedStates?.[idx] || false;
+            return sql`
+        INSERT INTO schedule_days (schedule_id, day, is_checked)
+        VALUES (${schedule_id}, ${dayStr}, ${checked})
+      `;
         });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Create schedule error:', err);
-        res.status(500).json({
-            error: 'Failed to create schedule',
-            message: err.message
-        });
-    } finally {
-        client.release();
-    }
-}
 
-// Get all schedules for a user
-export async function getSchedules(req, res) {
-    try {
-        const { userId } = req.params;
+        await Promise.all(insertQueries);
 
-        const result = await sql.query(`
-            SELECT s.*,
-                   COALESCE(json_agg(sd.* ORDER BY sd.date)
-                            FILTER (WHERE sd.id IS NOT NULL), '[]') as days
-            FROM schedules s
-                     LEFT JOIN schedule_days sd ON s.id = sd.schedule_id
-            WHERE s.user_id = $1
-            GROUP BY s.id
-            ORDER BY s.created_at DESC
-        `, [userId]);
-
-        res.json(result.rows);
+        res.status(201).json({ message: "Schedule saved", schedule_id });
     } catch (err) {
-        console.error('Get schedules error:', err);
-        res.status(500).json({
-            error: 'Failed to fetch schedules',
-            message: err.message
-        });
-    }
-}
-// Get a schedule with its days
-export async  function  getScheduleById  (req, res)  {
-    try {
-        const { id } = req.params;
-        const schedule = await sql.query('SELECT * FROM schedules WHERE id = $1', [id]);
-        const days = await sql.query('SELECT * FROM schedule_days WHERE schedule_id = $1 ORDER BY date', [id]);
-        res.json({ schedule: schedule.rows[0], days: days.rows });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: "Internal server error" });
     }
 };
 
-// Update a day's checked state
-export async function  updateDay  (req, res)  {
+// Hàm lấy chi tiết schedule theo ID
+export const getScheduleDetails = async (req, res) => {
+    const { id } = req.params;
     try {
-        const { day_id } = req.params;
-        const { is_checked } = req.body;
-        await sql.query(
-            'UPDATE schedule_days SET is_checked = $1 WHERE id = $2',
-            [is_checked, day_id]
-        );
-        res.json({ success: true });
+        const schedule = await sql`
+      SELECT * FROM schedules WHERE id = ${id}
+    `;
+        const days = await sql`
+      SELECT * FROM schedule_days WHERE schedule_id = ${id} ORDER BY day
+    `;
+        res.json({ schedule: schedule[0], days });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch schedule" });
     }
 };
-
-// Delete a schedule (and its days)
-export async  function  deleteSchedule  (req, res) {
-    try {
-        const { id } = req.params;
-        await sql.query('DELETE FROM schedules WHERE id = $1', [id]);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-};
-
-

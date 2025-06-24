@@ -1,22 +1,9 @@
-// backend/routes/schedulesRoute.js
-import express from "express";
+import express from 'express';
+import { createSchedule, getScheduleDetails } from '../controllers/schedulesController.js';
+
 const router = express.Router();
-import * as schedulesController from "../controllers/schedulesController.js";
 
-// Create schedule
-router.post('/', schedulesController.createSchedule);
-
-// Get all schedules for a user
-router.get('/', schedulesController.getSchedules);
-
-// Get a schedule by id (with days)
-// router.get('/:id', schedulesController.getScheduleById);
-// Sửa lại route
-router.get('/:userId', schedulesController.getSchedules);
-// Update a day's checked state
-router.put('/day/:day_id', schedulesController.updateDay);
-
-// Delete a schedule
-router.delete('/:id', schedulesController.deleteSchedule);
+router.post('/', createSchedule); // Tạo schedule mới
+router.get('/:id', getScheduleDetails); // Lấy chi tiết schedule theo ID
 
 export default router;
