@@ -1,3 +1,5 @@
+//  schedule.tsx
+
 import React, { useState } from 'react';
 import {StyleSheet, Text, View, TextInput, Button, ScrollView, TouchableOpacity, Platform, Alert} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
